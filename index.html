@@ -52,8 +52,9 @@
     .kpi{background:#f9fafb;border:1px solid #eee;border-radius:12px;padding:12px;text-align:left}
     .kpi .l{font-size:12px;color:#666;letter-spacing:.06em}
     .kpi .v{font-size:18px;font-weight:800;color:#333;margin-top:6px}
-    .desc{max-width:720px;margin:28px auto 0;color:#fff}
-    .desc p{margin:0 0 10px;line-height:1.7;opacity:.9}
+    .page-wrap{display:flex;flex-direction:column;align-items:center;gap:18px;width:100%}
+    .desc{max-width:720px;margin:0 auto 0;color:#fff}
+    .desc p{margin:0 0 10px;line-height:1.7;opacity:.95}
     .step{display:flex;align-items:start;margin-bottom:15px}
     .step-number{
       background:#667eea;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -88,7 +89,8 @@
     .empty{padding:10px 12px;border:1px dashed #ddd;border-radius:12px;color:#666;text-align:center}
   </style>
 </head>
-<body>
+  <body>
+    <div class="page-wrap">
     <div class="container">
      <h1>🚀 B402 NFT</h1>
      <p class="subtitle">The first NFT collection on b402 protocol</p>
@@ -132,13 +134,14 @@
       <div class="spinner"></div>
       <p>Processing transaction...</p>
     </div>
-  </div>
+    </div>
 
   <!-- Intro description under the card -->
   <div class="desc">
     <p>b402NFT introduces HTTP-native payments to NFT minting. No wallet signatures, no gas fees, no complexity.</p>
     <p>Send USD1. Receive NFT. That's it.</p>
     <p>First-come-first-served. No whitelist. No utility. Just a pure collectible experiment on a new protocol.</p>
+  </div>
   </div>
 
   <!-- 钱包选择弹窗 -->
