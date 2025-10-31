@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>B402 - Send USD1 with ZERO Gas Fees!</title>
+  <!-- 仍用 ethers v5，与现有后端/写法保持一致 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px
+    }
+    .container{
+      background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);
+      max-width:520px;width:100%;padding:40px
+    }
+    h1{
+      font-size:32px;margin-bottom:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent
+    }
+    .subtitle{color:#666;margin-bottom:30px;font-size:14px}
+    .highlight{background:#fef6e4;border-left:4px solid #f59e0b;padding:15px;margin:20px 0;border-radius:8px}
+    .highlight strong{color:#f59e0b;font-size:18px}
+    .input-group{margin-bottom:20px}
+    label{display:block;margin-bottom:8px;font-weight:600;color:#333}
+    input{
+      width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:16px;background:#f5f5f5;color:#555
+    }
+    button{
+      width:100%;padding:15px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;
+      font-size:18px;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s;margin-top:8px
+    }
+    button:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(102,126,234,.4)}
+    button:disabled{background:#ccc;cursor:not-allowed;transform:none}
+    .status{margin-top:16px;padding:14px;border-radius:8px;display:none}
+    .status.success{background:#d1fae5;border:2px solid #10b981;color:#065f46;display:block}
+    .status.error{background:#fee2e2;border:2px solid #ef4444;color:#991b1b;display:block}
+    .status.info{background:#dbeafe;border:2px solid #3b82f6;color:#1e40af;display:block}
+    .loading{text-align:center;margin-top:18px}
+    .spinner{border:3px solid #f3f3f3;border-top:3px solid #667eea;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:0 auto}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .tx-link{margin-top:10px;padding:10px;background:#f0f0f0;border-radius:8px;word-break:break-all}
+    .tx-link a{color:#667eea;text-decoration:none;font-weight:600}
+    .steps{background:#f9fafb;padding:20px;border-radius:8px;margin:20px 0}
+    .steps h3{margin-bottom:15px;color:#333}
+    .step{display:flex;align-items:start;margin-bottom:15px}
+    .step-number{
+      background:#667eea;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-weight:bold;margin-right:12px;flex-shrink:0
+    }
+    .wallet-info{background:#f9fafb;padding:15px;border-radius:8px;margin:15px 0;display:none}
+    .wallet-info.show{display:block}
+    .balance{display:flex;justify-content:space-between;margin:8px 0;font-size:14px}
+    .small{font-size:12px;color:#666;margin-top:6px}
+
+    /* === Wallet Modal === */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .modal.show{display:flex}
+    .modal-card{
+      background:#fff;border-radius:16px;max-width:520px;width:100%;padding:24px 18px 16px;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative
+    }
+    .modal-head{display:flex;justify-content:center;align-items:center;margin-bottom:14px;padding:0 6px}
+    .modal-title{font-size:18px;font-weight:700;text-align:center}
+    .wallet-list{display:flex;flex-direction:column;gap:10px;padding:6px}
+    .wallet-item{
+      display:flex;align-items:center;gap:10px;border:1px solid #eee;border-radius:12px;padding:12px 14px;cursor:pointer;
+      transition:transform .12s,border-color .12s,box-shadow .12s;background:#fff
+    }
+    .wallet-item:hover{transform:translateY(-1px);border-color:#cbd5ff;box-shadow:0 4px 12px rgba(102,126,234,.18)}
+    .wallet-logo{width:24px;height:24px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .wallet-logo img{width:24px;height:24px;display:block}
+    .wallet-name{font-size:14px;font-weight:600}
+    .close-btn{
+      position:absolute;top:10px;right:10px;background:transparent;color:#111;border:none;border-radius:8px;padding:6px 8px;
+      font-weight:700;cursor:pointer;font-size:20px;line-height:1;width:auto;z-index:5
+    }
+    .empty{padding:10px 12px;border:1px dashed #ddd;border-radius:12px;color:#666;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 B402 Payment</h1>
+    <p class="subtitle">Send USD1 on BSC Mainnet with ZERO gas fees!</p>
+
+    <div class="highlight">
+      <strong>💰 Pay $0 in gas!</strong><br/>
+      <small>Our facilitator covers all transaction fees for you.</small>
+    </div>
+
+    <div id="walletInfo" class="wallet-info">
+      <div class="balance"><span>Your Address:</span><span id="userAddress">Not connected</span></div>
+      <div class="balance"><span>USD1 Balance:</span><span id="USD1Balance">0</span></div>
+      <div class="balance"><span>BNB Balance:</span><span id="bnbBalance">0</span></div>
+      <div class="small" id="providerName"></div>
+    </div>
+
+    <div class="steps">
+      <h3>How it works:</h3>
+      <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Connect Wallet</strong><br/><small>Click button to choose a wallet</small></div></div>
+      <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Approve Once</strong><br/><small>One-time setup (~$0.10 in gas)</small></div></div>
+      <div class="step"><div class="step-number">3</div><div class="step-content"><strong>Send for FREE</strong><br/><small>All future payments are gasless!</small></div></div>
+    </div>
+
+    <div class="input-group">
+      <label for="recipientAddress">Recipient Address</label>
+      <input type="text" id="recipientAddress" placeholder="0x..." readonly/>
+    </div>
+
+    <div class="input-group">
+      <label for="amount">Amount (USD1)</label>
+      <input type="number" id="amount" placeholder="1" step="1" min="1" readonly/>
+    </div>
+
+    <button id="connectBtn" onclick="openWalletModal()">Connect Wallet</button>
+    <button id="approveBtn" onclick="approveRelayer()" style="display:none;">Approve Relayer USD1 </button>
+    <button id="sendBtn" onclick="sendPayment()" style="display:none;">Mint </button>
+
+    <div id="status" class="status"></div>
+    <div id="loading" class="loading" style="display:none;">
+      <div class="spinner"></div>
+      <p>Processing transaction...</p>
+    </div>
+  </div>
+
+  <!-- 钱包选择弹窗 -->
+  <div id="walletModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="close-btn" onclick="closeWalletModal()" aria-label="Close">×</button>
+      <div class="modal-head">
+        <div class="modal-title">Choose a Wallet</div>
+      </div>
+      <div id="walletList" class="wallet-list"></div>
+      <div id="walletEmpty" class="empty" style="display:none;">
+        No injected wallet detected.<br/>
+        Please install MetaMask / Rabby / OKX / Coinbase / Trust / Bitget / Brave...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Config (MAINNET) ======
+    const FACILITATOR_URL  = 'https://facilitator.b402.ai';
+    const RELAYER_CONTRACT = '0xE1C2830d5DDd6B49E9c46EbE03a98Cb44CD8eA5a';
+    const USD1_ADDRESS     = '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d';
+    const CHAIN_ID         = 56; // BSC Mainnet
+
+    // 固定收款人与金额
+    const FIXED_RECIPIENT  = '0x09dfe81b865839f0b522bc8a68add76ba7e9f24c';
+    const FIXED_AMOUNT     = '3'; // 3 USD1（18位小数）
+
+    const USD1_ABI = [
+      'function approve(address spender, uint256 amount) returns (bool)',
+      'function allowance(address owner, address spender) view returns (uint256)',
+      'function balanceOf(address account) view returns (uint256)',
+      'function decimals() view returns (uint8)'
+    ];
+
+    // 简单 Logo 来源：simple-icons（公共 CDN）
+    const ICON = (key)=>`https://cdn.jsdelivr.net/npm/simple-icons@11/icons/${key}.svg`;
+    const WALLET_ICON_MAP = {
+      metamask: ICON('metamask'),
+      rabby: ICON('rabby'),
+      okx: ICON('okx'),
+      coinbase: ICON('coinbase'),
+      trust: ICON('trustwallet'),
+      bitget: ICON('bitget'),
+      brave: ICON('brave'),
+      injected: ICON('web3dotjs')
+    };
+
+    let provider, signer, userAddress, USD1Contract, selectedProviderRef = null;
+    let USD1DecimalsCached = null; // cache token decimals to avoid mismatches
+
+    // ===== 检测钱包（EIP-6963 + 旧式注入） =====
+    const discovered = []; // { info, provider }
+    window.addEventListener('eip6963:announceProvider', (event) => {
+      const p = event.detail;
+      if (!discovered.find(x => x.info?.uuid === p.info?.uuid)) {
+        discovered.push(p);
+      }
+    });
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+
+    function listInjectedProviders() {
+      const result = [];
+
+      // 1) EIP-6963
+      for (const p of discovered) {
+        const name = (p.info?.name || '').toLowerCase();
+        const rdns = (p.info?.rdns || '').toLowerCase();
+        const key =
+          name.includes('metamask') || rdns.includes('metamask') ? 'metamask' :
+          name.includes('rabby')    || rdns.includes('rabby')    ? 'rabby'    :
+          name.includes('okx')      || rdns.includes('okx')      ? 'okx'      :
+          name.includes('coinbase') || rdns.includes('coinbase') ? 'coinbase' :
+          name.includes('trust')    || rdns.includes('trust')    ? 'trust'    :
+          name.includes('bitget')   || rdns.includes('bitget')   ? 'bitget'   :
+          name.includes('brave')    || rdns.includes('brave')    ? 'brave'    : 'injected';
+        result.push({ label: p.info?.name || 'Wallet', key, provider: p.provider });
+      }
+
+      // 2) 旧式注入 providers[]
+      const eth = window.ethereum;
+      if (eth && Array.isArray(eth.providers)) {
+        const pushIf = (prov, key, label) => prov && result.push({ label, key, provider: prov });
+        const mm   = eth.providers.find(p => p.isMetaMask);
+        const rab  = eth.providers.find(p => p.isRabby);
+        const okx  = eth.providers.find(p => p.isOkxWallet || p.isOKExWallet);
+        const cb   = eth.providers.find(p => p.isCoinbaseWallet);
+        const trust= eth.providers.find(p => p.isTrust || p.isTrustWallet);
+        const bitg = eth.providers.find(p => p.isBitKeep || p.isBitgetWallet);
+        const brave= eth.providers.find(p => p.isBraveWallet);
+        const any  = eth.providers[0];
+
+        pushIf(mm,'metamask','MetaMask');
+        pushIf(rab,'rabby','Rabby');
+        pushIf(okx,'okx','OKX Wallet');
+        pushIf(cb,'coinbase','Coinbase Wallet');
+        pushIf(trust,'trust','Trust Wallet');
+        pushIf(bitg,'bitget','Bitget/BitKeep');
+        pushIf(brave,'brave','Brave Wallet');
+
+        // 兜底（如果上面都没匹配到）
+        if (any && !result.find(r => r.provider === any)) {
+          result.push({ label: 'Injected Wallet', key: 'injected', provider: any });
+        }
+      } else if (eth) {
+        // 3) 单一 ethereum
+        const key =
+          eth.isMetaMask ? 'metamask' :
+          eth.isRabby ? 'rabby' :
+          (eth.isOkxWallet || eth.isOKExWallet) ? 'okx' :
+          eth.isCoinbaseWallet ? 'coinbase' :
+          (eth.isTrust || eth.isTrustWallet) ? 'trust' :
+          (eth.isBitKeep || eth.isBitgetWallet) ? 'bitget' :
+          eth.isBraveWallet ? 'brave' : 'injected';
+        const label =
+          key==='metamask' ? 'MetaMask' :
+          key==='rabby'    ? 'Rabby' :
+          key==='okx'      ? 'OKX Wallet' :
+          key==='coinbase' ? 'Coinbase Wallet' :
+          key==='trust'    ? 'Trust Wallet' :
+          key==='bitget'   ? 'Bitget/BitKeep' :
+          key==='brave'    ? 'Brave Wallet' : 'Injected Wallet';
+        result.push({ label, key, provider: eth });
+      }
+
+      // 去重（按 provider 引用）
+      const uniq = [];
+      const seen = new Set();
+      for (const r of result) {
+        if (!seen.has(r.provider)) { seen.add(r.provider); uniq.push(r); }
+      }
+      // 再按 label 去重，避免同一钱包来源于不同通道重复（如 MetaMask）
+      const uniqByLabel = [];
+      const seenLabel = new Set();
+      for (const r of uniq) {
+        const labelKey = String(r.label || '').toLowerCase();
+        if (!seenLabel.has(labelKey)) { seenLabel.add(labelKey); uniqByLabel.push(r); }
+      }
+      return uniqByLabel;
+    }
+
+    // ===== Modal 相关 =====
+    function openWalletModal() {
+      const modal = document.getElementById('walletModal');
+      const listEl = document.getElementById('walletList');
+      const emptyEl = document.getElementById('walletEmpty');
+      listEl.innerHTML = '';
+      const items = listInjectedProviders();
+
+      if (items.length === 0) {
+        emptyEl.style.display = 'block';
+      } else {
+        emptyEl.style.display = 'none';
+        for (const it of items) {
+          const div = document.createElement('div');
+          div.className = 'wallet-item';
+          div.onclick = () => chooseWallet(it);
+          div.innerHTML = `
+            <div class="wallet-name">${it.label}</div>
+          `;
+          listEl.appendChild(div);
+        }
+      }
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden','false');
+    }
+    function closeWalletModal(){
+      const modal = document.getElementById('walletModal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+    }
+
+    // 页面加载：填充并锁定输入框
+    window.addEventListener('DOMContentLoaded', () => {
+      const addr = document.getElementById('recipientAddress');
+      const amt  = document.getElementById('amount');
+      addr.value = FIXED_RECIPIENT; addr.readOnly = true; addr.style.background = '#f5f5f5';
+      amt.value  = FIXED_AMOUNT;    amt.readOnly  = true; amt.style.background  = '#f5f5f5';
+    });
+
+    async function ensureBsc(selectedProvider) {
+      try {
+        await selectedProvider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x38' }], // 56
+        });
+      } catch (e) {
+        if (e.code === 4902) {
+          await selectedProvider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x38',
+              chainName: 'BNB Smart Chain',
+              nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+              rpcUrls: ['https://bsc-dataseed.binance.org'],
+              blockExplorerUrls: ['https://bscscan.com'],
+            }],
+          });
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    async function chooseWallet(item) {
+      try {
+        closeWalletModal();
+        selectedProviderRef = item.provider;
+        // 让其他库也能拿到
+        window.ethereum = selectedProviderRef;
+
+        showLoading(true);
+        showStatus(`Connecting to ${item.label}...`, 'info');
+
+        await selectedProviderRef.request({ method: 'eth_requestAccounts' });
+        await ensureBsc(selectedProviderRef);
+
+        provider = new ethers.providers.Web3Provider(selectedProviderRef);
+        signer   = provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        const network = await provider.getNetwork();
+        if (network.chainId !== CHAIN_ID) {
+          showStatus('Please switch to BSC Mainnet in your wallet', 'error');
+          showLoading(false);
+          return;
+        }
+
+        // Initialize USD1 contract
+        USD1Contract = new ethers.Contract(USD1_ADDRESS, USD1_ABI, signer);
+
+        // Get balances
+        const USD1Balance  = await USD1Contract.balanceOf(userAddress);
+        const bnbBalance   = await provider.getBalance(userAddress);
+        const USD1Decimals = await USD1Contract.decimals();
+        USD1DecimalsCached = USD1Decimals; // cache for approval/allowance
+
+        // Update UI
+        document.getElementById('userAddress').textContent =
+          userAddress.slice(0,6) + '...' + userAddress.slice(-4);
+        document.getElementById('USD1Balance').textContent =
+          ethers.utils.formatUnits(USD1Balance, USD1Decimals) + ' USD1';
+        document.getElementById('bnbBalance').textContent =
+          ethers.utils.formatEther(bnbBalance) + ' BNB';
+        document.getElementById('providerName').textContent =
+          'Provider: ' + (item.label || 'Injected Wallet');
+
+        document.getElementById('walletInfo').classList.add('show');
+        document.getElementById('connectBtn').style.display = 'none';
+
+        // 授权检查（>= 1 USD1） — use actual token decimals
+        const required  = ethers.utils.parseUnits(FIXED_AMOUNT, USD1DecimalsCached || 18);
+        const allowance = await USD1Contract.allowance(userAddress, RELAYER_CONTRACT);
+        if (allowance.gte(required)) {
+          document.getElementById('sendBtn').style.display = 'block';
+          showStatus('✅ Already approved! Ready to send gasless payments.', 'success');
+        } else {
+          document.getElementById('approveBtn').style.display = 'block';
+          showStatus('✅ Wallet connected! Now approve 1 USD1 to relayer.', 'success');
+        }
+
+        showLoading(false);
+      } catch (error) {
+        console.error(error);
+        showStatus('Connection failed: ' + (error?.message || error), 'error');
+        showLoading(false);
+      }
+    }
+
+    async function approveRelayer() {
+      try {
+        showLoading(true);
+        showStatus('⏳ Approving relayer for 1 USD1... (This will cost gas)', 'info');
+
+        const decimalsForApprove = USD1DecimalsCached ?? await USD1Contract.decimals();
+        const tx = await USD1Contract.approve(
+          RELAYER_CONTRACT,
+          ethers.utils.parseUnits(FIXED_AMOUNT, decimalsForApprove) // approve exact 1 USD1
+        );
+
+        showStatus('Transaction sent! Waiting for confirmation...', 'info');
+        await tx.wait();
+
+        document.getElementById('approveBtn').style.display = 'none';
+        document.getElementById('sendBtn').style.display = 'block';
+
+        showStatus('✅ Approved 1 USD1! Now you can send for FREE', 'success');
+        showLoading(false);
+      } catch (error) {
+        console.error(error);
+        showStatus('Approval failed: ' + (error?.message || error), 'error');
+        showLoading(false);
+      }
+    }
+
+    async function sendPayment() {
+      try {
+        const recipient = FIXED_RECIPIENT;
+        const amount    = FIXED_AMOUNT;
+
+        if (!ethers.utils.isAddress(recipient)) {
+          showStatus('Invalid fixed recipient address!', 'error');
+          return;
+        }
+
+        showLoading(true);
+        showStatus('⏳ Step 1/3: Signing payment authorization (no gas!)...', 'info');
+
+        const USD1Decimals = await USD1Contract.decimals();
+        const value = ethers.utils.parseUnits(amount, USD1Decimals);
+        const now = Math.floor(Date.now() / 1000);
+
+        const authorization = {
+          from: userAddress,
+          to: recipient,
+          value: value.toString(),
+          validAfter: now - 60,
+          validBefore: now + 3600,
+          nonce: ethers.utils.hexlify(ethers.utils.randomBytes(32))
+        };
+
+        const domain = {
+          name: 'B402',
+          version: '1',
+          chainId: CHAIN_ID,
+          verifyingContract: RELAYER_CONTRACT
+        };
+
+        const types = {
+          TransferWithAuthorization: [
+            { name:'from', type:'address' },
+            { name:'to', type:'address' },
+            { name:'value', type:'uint256' },
+            { name:'validAfter', type:'uint256' },
+            { name:'validBefore', type:'uint256' },
+            { name:'nonce', type:'bytes32' }
+          ]
+        };
+
+        const signature = await signer._signTypedData(domain, types, authorization);
+
+        showStatus('⏳ Step 2/3: Verifying payment with facilitator...', 'info');
+
+        const payload = {
+          paymentPayload: {
+            token: USD1_ADDRESS,
+            payload: { authorization, signature }
+          },
+          paymentRequirements: {
+            relayerContract: RELAYER_CONTRACT,
+            network: 'bsc'
+          }
+        };
+
+        const verifyResponse = await fetch(`${FACILITATOR_URL}/verify`, {
+          method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const verifyResult = await verifyResponse.json();
+        if (!verifyResult.isValid) {
+          showStatus('❌ Verification failed: ' + verifyResult.invalidReason, 'error');
+          showLoading(false); return;
+        }
+
+        showStatus('⏳ Step 3/3: Executing payment on-chain (facilitator pays gas!)...', 'info');
+
+        const settleResponse = await fetch(`${FACILITATOR_URL}/settle`, {
+          method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const settleResult = await settleResponse.json();
+
+        if (!settleResult.success) {
+          showStatus('❌ Settlement failed: ' + settleResult.errorReason, 'error');
+          showLoading(false); return;
+        }
+
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = `
+          <strong>🎉 Payment Successful!</strong><br>
+          Sent ${amount} USD1 to ${recipient.slice(0,6)}...${recipient.slice(-4)}<br>
+          <strong>You paid $0 in gas!</strong>
+          <div class="tx-link">
+            <a href="https://bscscan.com/tx/${settleResult.transaction}" target="_blank">View on BSCScan ↗</a>
+          </div>`;
+        statusDiv.className = 'status success';
+        showLoading(false);
+
+        setTimeout(() => { chooseWallet({ provider: selectedProviderRef, label: 'Wallet' }); }, 2000);
+      } catch (error) {
+        console.error(error);
+        showStatus('Payment failed: ' + (error?.message || error), 'error');
+        showLoading(false);
+      }
+    }
+
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = `status ${type}`;
+    }
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    // 取消自动连接，改为用户选择
+    // window.addEventListener('load', ... );
+  </script>
+</body>
+</html>
